@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "31879317217",
+    "project_id": "chakraa-56fc5",
+    "storage_bucket": "chakraa-56fc5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31879317217:android:cab8ae1e6a3ac3d06e19a0",
+        "android_client_info": {
+          "package_name": "com.chaakra.Bus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8SHPpwMaM5KEHPehJz-mLJzdPB4P6qEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
