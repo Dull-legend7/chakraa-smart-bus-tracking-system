@@ -108,9 +108,9 @@ DATABASE_URL=your_url
 
 ## 👨‍💻 Contributors
 
-* Athul
-* Varshith
-* Rithin
+* Athul S
+* M.Varshith Reddy
+* Rithin Ranjith
 * Noaf N
 * Nived S
 
