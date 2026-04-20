@@ -1,3 +1,4 @@
+![GitHub repo size](https://img.shields.io/github/repo-size/Dull-legend7/chakraa-smart-bus-tracking-system)
 # 🚌 Chakraa - Smart Bus Tracking System
 
 A real-time bus tracking application designed to help users track buses efficiently using GPS and IoT integration.
@@ -7,6 +8,15 @@ A real-time bus tracking application designed to help users track buses efficien
 ## 📌 Project Overview
 
 Chakraa is a smart transportation solution that provides real-time bus location tracking using an ESP32-based GPS module, Firebase backend, and mobile/web applications for users and drivers.
+
+---
+
+## 🧰 Tech Stack
+
+- **Frontend:** React Native  
+- **Backend:** Node.js / Express  
+- **Database:** Firebase Realtime Database  
+- **Hardware:** ESP32 + GPS Module
 
 ---
 
@@ -33,7 +43,7 @@ Chakraa is a smart transportation solution that provides real-time bus location 
 ## 📂 Project Structure
 
 ```
-bus_tracking/
+chakraa-smart-bus-tracking-system/
 │── client/        # User application
 │── server/        # Backend server
 │── driver-app/    # Driver application
@@ -57,7 +67,7 @@ bus_tracking/
 ### 1️⃣ Clone the repository
 
 ```
-git clone https://github.com/Dull-legend7/bus_tracking.git
+git clone https://github.com/Dull-legend7/chakraa-smart-bus-tracking-system.git
 ```
 
 ### 2️⃣ Install dependencies
