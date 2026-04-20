@@ -3,19 +3,21 @@ import { View } from "react-native";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
 
-import { db } from "@/configs/firebase";
-import { ref, update, onValue } from "firebase/database";
+import { database } from "../../configs/firebase";
+import { ref, update, onValue, off } from "firebase/database";
 
 export default function MapScreen() {
   const webRef = useRef<WebView>(null);
 
   /* 🔥 SEND DRIVER LOCATION */
   useEffect(() => {
+    let subscription: any;
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
 
-      await Location.watchPositionAsync(
+      subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
           timeInterval: 4000,
@@ -24,7 +26,9 @@ export default function MapScreen() {
         (loc) => {
           const { latitude, longitude } = loc.coords;
 
-          update(ref(db, "drivers/driver1/location"), {
+          console.log("📡 Sending:", latitude, longitude);
+
+          update(ref(database, "drivers/driver1/location"), {
             latitude,
             longitude,
             timestamp: Date.now(),
@@ -32,23 +36,36 @@ export default function MapScreen() {
         }
       );
     })();
+
+    return () => {
+      if (subscription) subscription.remove();
+    };
   }, []);
 
-  /* 🔥 RECEIVE LOCATION */
+  /* 🔥 RECEIVE DRIVER LOCATION */
   useEffect(() => {
-    const driverRef = ref(db, "drivers/driver1/location");
+    const driverRef = ref(database, "drivers/driver1");
 
     onValue(driverRef, (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
 
+      console.log("📥 Receiving:", data);
+
+      const lat = data.location?.latitude;
+      const lng = data.location?.longitude;
+
+      if (!lat || !lng) return;
+
       webRef.current?.injectJavaScript(`
         if(window.updateDriver){
-          window.updateDriver(${data.latitude}, ${data.longitude});
+          window.updateDriver(${lat}, ${lng});
         }
         true;
       `);
     });
+
+    return () => off(driverRef);
   }, []);
 
   const html = `
@@ -59,25 +76,23 @@ export default function MapScreen() {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-html, body, #map { height: 100%; margin: 0; }
+html, body, #map { height: 100%; margin: 0; font-family: -apple-system; }
 
-.leaflet-control-zoom { margin-top: 120px !important; }
-
+/* 🔥 TOP COORD BAR */
 .coord-bar {
   position: absolute;
-  top: 80px;
-  left: 12px;
-  right: 12px;
+  top: 70px;
+  left: 16px;
+  right: 16px;
   background: rgba(0,0,0,0.75);
   color: white;
   padding: 12px;
-  border-radius: 16px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 20px;
   text-align: center;
   z-index: 999;
 }
 
+/* 🔥 SEARCH UI */
 .search-wrapper {
   position: absolute;
   bottom: 20px;
@@ -88,17 +103,17 @@ html, body, #map { height: 100%; margin: 0; }
 
 .search-card {
   background: white;
-  border-radius: 20px;
+  border-radius: 24px;
   padding: 14px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.3);
 }
 
 .input-row {
   display: flex;
   align-items: center;
-  background: #f3f4f6;
-  border-radius: 12px;
-  padding: 10px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 12px;
   margin-bottom: 10px;
 }
 
@@ -107,25 +122,31 @@ html, body, #map { height: 100%; margin: 0; }
   border: none;
   background: transparent;
   font-size: 14px;
-  outline: none;
 }
 
+/* 🔥 CLEAN AUTOCOMPLETE */
 .suggestions {
   background: white;
   border-radius: 12px;
   overflow: hidden;
+  margin-bottom: 10px;
 }
 
 .suggestion-item {
-  padding: 10px;
+  padding: 12px;
   border-bottom: 1px solid #eee;
   font-size: 13px;
+}
+
+.suggestion-item:hover {
+  background: #f3f4f6;
 }
 
 .route-info {
   text-align: center;
   font-size: 13px;
   margin-top: 5px;
+  font-weight: 600;
 }
 </style>
 </head>
@@ -158,24 +179,37 @@ html, body, #map { height: 100%; margin: 0; }
 <script>
 var map = L.map('map').setView([8.5241, 76.9366], 12);
 
-L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
 }).addTo(map);
 
+/* 🔥 ICONS */
 var busIcon = L.icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/512/3448/3448339.png",
-  iconSize: [42, 42],
-  iconAnchor: [21, 42]
+  iconSize: [40, 40],
+  iconAnchor: [20, 40]
 });
 
-var driverMarker, startMarker, endMarker, routeLine;
+var startIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+  iconSize: [30, 30],
+  iconAnchor: [15, 30]
+});
+
+var endIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/149/149060.png",
+  iconSize: [30, 30],
+  iconAnchor: [15, 30]
+});
+
+var driverMarker, routeLine, startMarker, endMarker;
 var fromCoords = null;
 var toCoords = null;
 
-/* DRIVER */
+/* 🔥 DRIVER UPDATE */
 window.updateDriver = function(lat, lon) {
   document.getElementById("coords").innerHTML =
-    "📍 LAT: " + lat.toFixed(5) + " | LON: " + lon.toFixed(5);
+    "📍 " + lat.toFixed(5) + ", " + lon.toFixed(5);
 
   if (!driverMarker) {
     driverMarker = L.marker([lat, lon], { icon: busIcon }).addTo(map);
@@ -183,37 +217,34 @@ window.updateDriver = function(lat, lon) {
   } else {
     driverMarker.setLatLng([lat, lon]);
   }
-
-  map.panTo([lat, lon]);
 };
 
-/* AUTOCOMPLETE */
+/* 🔍 AUTOCOMPLETE */
 function fetchSuggestions(query, listId, callback) {
   if (query.length < 2) return;
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + query, {
-    headers: { "User-Agent": "chakraa-app" }
-  })
+  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + query)
     .then(res => res.json())
     .then(data => {
-      let html = "";
-      data.slice(0,5).forEach(item => {
-        html += "<div class='suggestion-item'>" + item.display_name + "</div>";
-      });
-
       const list = document.getElementById(listId);
-      list.innerHTML = html;
+      list.innerHTML = "";
 
-      Array.from(list.children).forEach((el, i) => {
-        el.onclick = () => {
-          callback(data[i]);
+      data.slice(0,5).forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "suggestion-item";
+        div.innerText = item.display_name;
+
+        div.onclick = () => {
+          callback(item);
           list.innerHTML = "";
         };
+
+        list.appendChild(div);
       });
     });
 }
 
-/* ROUTE */
+/* 🛣 ROUTE */
 function drawRoute() {
   if (!fromCoords || !toCoords) return;
 
@@ -223,19 +254,19 @@ function drawRoute() {
       const route = data.routes[0];
 
       if (routeLine) map.removeLayer(routeLine);
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+
       routeLine = L.geoJSON(route.geometry, {
-        style: { color: "#4F46E5", weight: 5 }
+        style: { color: "#2563EB", weight: 6 }
       }).addTo(map);
+
+      startMarker = L.marker([fromCoords.lat, fromCoords.lon], { icon: startIcon }).addTo(map);
+      endMarker = L.marker([toCoords.lat, toCoords.lon], { icon: endIcon }).addTo(map);
 
       map.fitBounds(routeLine.getBounds());
 
-      if (startMarker) map.removeLayer(startMarker);
-      startMarker = L.marker([fromCoords.lat, fromCoords.lon], { icon: busIcon }).addTo(map);
-
-      if (endMarker) map.removeLayer(endMarker);
-      endMarker = L.marker([toCoords.lat, toCoords.lon], { icon: busIcon }).addTo(map);
-
-      const km = (route.distance / 1000).toFixed(2);
+      const km = (route.distance / 1000).toFixed(1);
       const min = Math.round(route.duration / 60);
 
       document.getElementById("routeInfo").innerHTML =
@@ -247,7 +278,6 @@ function drawRoute() {
 document.getElementById("from").addEventListener("input", (e) => {
   fetchSuggestions(e.target.value, "fromList", (item) => {
     fromCoords = item;
-    document.getElementById("from").value = item.display_name;
     drawRoute();
   });
 });
@@ -255,7 +285,6 @@ document.getElementById("from").addEventListener("input", (e) => {
 document.getElementById("to").addEventListener("input", (e) => {
   fetchSuggestions(e.target.value, "toList", (item) => {
     toCoords = item;
-    document.getElementById("to").value = item.display_name;
     drawRoute();
   });
 });

@@ -1,9 +1,9 @@
 // configs/firebase.ts
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 
-// 🔥 Your Firebase config (unchanged)
+// 🔥 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDDbRtiAJDZny9bxf2doLM4VGefdh6_ATQ",
   authDomain: "chakraa-bus-tracker-gps.firebaseapp.com",
@@ -15,8 +15,8 @@ const firebaseConfig = {
   appId: "1:107267482219:web:0f1b45be0df4813194072e",
 };
 
-// ✅ Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// ✅ Prevent re-initialization (VERY IMPORTANT in Expo)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// ✅ Realtime DB (THIS is what you need)
-export const db = getDatabase(app);
+// ✅ Export database (THIS NAME MUST MATCH YOUR IMPORTS)
+export const database = getDatabase(app);

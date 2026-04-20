@@ -1,12 +1,31 @@
-import { View, Text, StyleSheet, FlatList } from "react-native";
-import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, FlatList, Button, Alert } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
 import RideCard from "@/components/ride/ride.card";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useTheme } from "@react-navigation/native";
 import fonts from "@/themes/app.fonts";
 
-// 🔥 10 DUMMY RIDES
+// 🔥 FIREBASE
+import { ref, onValue, update } from "firebase/database";
+import { database } from "../../../configs/firebase";
+
+// 🔥 DISTANCE FUNCTION (UNCHANGED)
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+// 🔥 DUMMY RIDES (UNCHANGED)
 const dummyRides = [
   { id: "1", user: { name: "Rahul" }, charge: 250, distance: "12 km", currentLocationName: "Kazhakootam", destinationLocationName: "Technopark", createdAt: "2025-04-01" },
   { id: "2", user: { name: "Anjali" }, charge: 180, distance: "8 km", currentLocationName: "Pattom", destinationLocationName: "Medical College", createdAt: "2025-04-02" },
@@ -22,8 +41,14 @@ const dummyRides = [
 
 export default function Rides() {
   const { colors } = useTheme();
-  const [rides, setRides] = useState<any[]>([]);
 
+  const [rides, setRides] = useState<any[]>([]);
+  const [liveBooking, setLiveBooking] = useState<any>(null);
+
+  // ✅ Prevent duplicate alerts
+  const seenBookings = useRef<Set<string>>(new Set());
+
+  // 🔥 FETCH HISTORY (UNCHANGED)
   const getRecentRides = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("accessToken");
@@ -44,23 +69,131 @@ export default function Rides() {
       }
     } catch (error) {
       console.log("Ride fetch error:", error);
-      setRides(dummyRides); // 🔥 fallback
+      setRides(dummyRides);
     }
   };
 
+  // 🔥 FIREBASE LISTENER (FIXED PROPERLY)
+  useEffect(() => {
+    console.log("🔥 DRIVER LISTENER STARTED");
+    const bookingsRef = ref(database, "bookings");
+
+    const unsubscribe = onValue(bookingsRef, (snapshot) => {
+      console.log("🟡 BOOKINGS SNAPSHOT");
+
+      const data = snapshot.val();
+      if (!data) return;
+
+      Object.entries(data).forEach(([id, val]: any) => {
+        if (val.status !== "searching") return;
+
+        // ❌ prevent repeat alerts
+        if (seenBookings.current.has(id)) return;
+
+        // 👉 TEMP DRIVER LOCATION
+        const driverLat = 8.64824;
+        const driverLng = 76.78528;
+
+        const pickupLat = val.pickupCoords?.latitude;
+        const pickupLng = val.pickupCoords?.longitude;
+
+        if (!pickupLat || !pickupLng) return;
+
+        const distance = getDistance(
+          driverLat,
+          driverLng,
+          pickupLat,
+          pickupLng
+        );
+
+        console.log("📏 Distance:", distance);
+
+        // ✅ Nearby filter
+        if (distance < 2) {
+          seenBookings.current.add(id);
+
+          const booking = { id, ...val };
+          setLiveBooking(booking);
+
+          console.log("🚨 SHOW ALERT");
+
+          Alert.alert(
+            "🚨 Nearby Ride Request",
+            "Passenger nearby. Accept?",
+            [
+              {
+                text: "Reject",
+                style: "cancel",
+              },
+              {
+                text: "Accept",
+                onPress: async () => {
+                  const bookingRef = ref(database, `bookings/${id}`);
+
+                  await update(bookingRef, {
+                    status: "accepted",
+                    driverId: "driver_1",
+                  });
+
+                  console.log("✅ ACCEPTED");
+
+                  setLiveBooking(null);
+                },
+              },
+            ]
+          );
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 🔥 LOAD HISTORY
   useEffect(() => {
     getRecentRides();
   }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      
-      {/* 🔥 HEADER */}
+
+      {/* HEADER */}
       <Text style={[styles.title, { color: colors.text }]}>
+        Driver Dashboard
+      </Text>
+
+      {/* 🚨 LIVE BOOKING CARD */}
+      {liveBooking && (
+        <View style={styles.liveCard}>
+          <Text style={styles.liveTitle}>🚨 Nearby Ride Request</Text>
+
+          <Text>
+            Pickup: {liveBooking.pickupCoords?.latitude},{" "}
+            {liveBooking.pickupCoords?.longitude}
+          </Text>
+
+          <Text>Price: ₹{liveBooking.price}</Text>
+
+          <Button title="Accept Ride" onPress={async () => {
+            const bookingRef = ref(database, `bookings/${liveBooking.id}`);
+
+            await update(bookingRef, {
+              status: "accepted",
+              driverId: "driver_1",
+            });
+
+            Alert.alert("✅ Ride Accepted");
+            setLiveBooking(null);
+          }} />
+        </View>
+      )}
+
+      {/* HISTORY TITLE */}
+      <Text style={[styles.subtitle, { color: colors.text }]}>
         Ride History
       </Text>
 
-      {/* 🔥 LIST */}
+      {/* LIST */}
       <FlatList
         data={rides}
         keyExtractor={(item, index) => item.id || index.toString()}
@@ -82,6 +215,24 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: fonts.bold,
+    marginBottom: 10,
+  },
+
+  subtitle: {
+    fontSize: 18,
+    marginVertical: 10,
+  },
+
+  liveCard: {
+    backgroundColor: "#ffecec",
+    padding: 15,
+    borderRadius: 12,
     marginBottom: 15,
+  },
+
+  liveTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 5,
   },
 });
