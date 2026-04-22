@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
 } from "react-native";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Header from "@/components/common/header";
 import { useTheme } from "@react-navigation/native";
@@ -20,7 +22,7 @@ const dashboardData = [
   { id: "4", title: "Cancel Ride" },
 ];
 
-/* 🔥 DUMMY RIDES */
+/* 🔥 PROFESSIONAL DUMMY RIDES (10+) */
 const dummyRides = [
   {
     id: "1",
@@ -28,7 +30,7 @@ const dummyRides = [
     charge: 250,
     distance: "12 km",
     createdAt: "2026-04-04",
-    currentLocationName: "Kazhakoottam",
+    currentLocationName: "Kazhakootam",
     destinationLocationName: "Technopark",
   },
   {
@@ -40,20 +42,114 @@ const dummyRides = [
     currentLocationName: "Pattom",
     destinationLocationName: "Medical College",
   },
+  {
+    id: "3",
+    user: { name: "Arjun" },
+    charge: 320,
+    distance: "15 km",
+    createdAt: "2026-04-02",
+    currentLocationName: "Kowdiar",
+    destinationLocationName: "Airport",
+  },
+  {
+    id: "4",
+    user: { name: "Neha" },
+    charge: 210,
+    distance: "9 km",
+    createdAt: "2026-04-01",
+    currentLocationName: "Attingal",
+    destinationLocationName: "Kazhakootam",
+  },
+  {
+    id: "5",
+    user: { name: "Vikram" },
+    charge: 300,
+    distance: "18 km",
+    createdAt: "2026-03-31",
+    currentLocationName: "Varkala",
+    destinationLocationName: "Kollam",
+  },
+  {
+    id: "6",
+    user: { name: "Sneha" },
+    charge: 170,
+    distance: "7 km",
+    createdAt: "2026-03-30",
+    currentLocationName: "Technopark",
+    destinationLocationName: "Sreekaryam",
+  },
+  {
+    id: "7",
+    user: { name: "Rohit" },
+    charge: 260,
+    distance: "11 km",
+    createdAt: "2026-03-29",
+    currentLocationName: "Kazhakootam",
+    destinationLocationName: "Pattom",
+  },
+  {
+    id: "8",
+    user: { name: "Divya" },
+    charge: 190,
+    distance: "6 km",
+    createdAt: "2026-03-28",
+    currentLocationName: "Ulloor",
+    destinationLocationName: "Medical College",
+  },
+  {
+    id: "9",
+    user: { name: "Kiran" },
+    charge: 350,
+    distance: "20 km",
+    createdAt: "2026-03-27",
+    currentLocationName: "Attingal",
+    destinationLocationName: "Trivandrum Central",
+  },
+  {
+    id: "10",
+    user: { name: "Meera" },
+    charge: 230,
+    distance: "10 km",
+    createdAt: "2026-03-26",
+    currentLocationName: "Kazhakootam",
+    destinationLocationName: "Veli",
+  },
 ];
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+
   const [isOn, setIsOn] = useState(false);
 
   // ✅ FIREBASE + API DATA
   const { driver } = useGetDriverData();
 
+  /* 🔥 LOAD SAVED ONLINE STATUS */
+  useEffect(() => {
+    const loadStatus = async () => {
+      const saved = await AsyncStorage.getItem("driverOnline");
+      if (saved !== null) {
+        setIsOn(JSON.parse(saved));
+      }
+    };
+    loadStatus();
+  }, []);
+
+  /* 🔥 TOGGLE FUNCTION */
+  const toggleSwitch = async () => {
+    const newValue = !isOn;
+    setIsOn(newValue);
+
+    await AsyncStorage.setItem("driverOnline", JSON.stringify(newValue));
+
+    console.log("🟢 Driver Online Status:", newValue);
+  };
+
   return (
     <View style={styles.container}>
       
       {/* HEADER */}
-      <Header isOn={isOn} toggleSwitch={() => setIsOn(!isOn)} />
+      <Header isOn={isOn} toggleSwitch={toggleSwitch} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -67,7 +163,7 @@ export default function HomeScreen() {
               <RenderRideItem
                 item={item}
                 colors={colors}
-                driver={driver}   // ✅ IMPORTANT FIX
+                driver={driver}
               />
             </View>
           ))}
