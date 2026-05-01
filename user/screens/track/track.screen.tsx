@@ -8,12 +8,37 @@ import { database } from "@/lib/firebase";
 import axios from "axios";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { TouchableOpacity, Alert } from "react-native";
+import { set } from "firebase/database";
+import { router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+
 
 export default function TrackScreen() {
+  const { bookingId } = useLocalSearchParams(); // ✅ ADD HERE
   const insets = useSafeAreaInsets();
 
   const [currentLocation, setCurrentLocation] =
     useState<LocationObjectCoords | null>(null);
+
+    // ✅ ADD YOUR FUNCTION RIGHT HERE
+  const handleCancel = async () => {
+    try {
+      if (!bookingId) return;
+
+      await set(
+        ref(database, `bookings/${bookingId}/status`),
+        "cancelled"
+      );
+
+      Alert.alert("Ride Cancelled ❌");
+
+      router.replace("/");
+    } catch (err) {
+      console.log("Cancel error:", err);
+    }
+  };
+
 
   const [busLocation, setBusLocation] = useState<{
     latitude: number;
@@ -173,86 +198,106 @@ export default function TrackScreen() {
     );
   }
 
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      
-      {/* 🔍 SEARCH */}
-      <View
-        style={{
-          position: "absolute",
-          top: insets.top + 10,
-          width: "90%",
-          alignSelf: "center",
-          zIndex: 1000,
-        }}
-      >
-        <GooglePlacesAutocomplete
-          placeholder="Search destination..."
-          fetchDetails={true}
-          onPress={(data, details = null) => {
-            if (!details) return;
+ return (
+  <SafeAreaView style={{ flex: 1 }}>
+    
+    {/* 🔍 SEARCH */}
+    <View
+      style={{
+        position: "absolute",
+        top: insets.top + 10,
+        width: "90%",
+        alignSelf: "center",
+        zIndex: 1000,
+      }}
+    >
+      <GooglePlacesAutocomplete
+        placeholder="Search destination..."
+        fetchDetails={true}
+        onPress={(data, details = null) => {
+          if (!details) return;
 
-            setDestination({
-              latitude: details.geometry.location.lat,
-              longitude: details.geometry.location.lng,
-            });
-          }}
-          query={{
-            key: GOOGLE_API_KEY,
-            language: "en",
-          }}
-          styles={{
-            textInput: {
-              backgroundColor: "#fff",
-              borderRadius: 10,
-              height: 45,
-              paddingHorizontal: 10,
-            },
-          }}
-        />
-      </View>
-
-      {/* 🗺 MAP */}
-      <WebView
-        originWhitelist={["*"]}
-        source={{
-          html: mapHTML(
-            busLocation.latitude,
-            busLocation.longitude,
-            destination
-          ),
+          setDestination({
+            latitude: details.geometry.location.lat,
+            longitude: details.geometry.location.lng,
+          });
         }}
-        style={{ flex: 1 }}
+        query={{
+          key: GOOGLE_API_KEY,
+          language: "en",
+        }}
+        styles={{
+          textInput: {
+            backgroundColor: "#fff",
+            borderRadius: 10,
+            height: 45,
+            paddingHorizontal: 10,
+          },
+        }}
       />
+    </View>
 
-      {/* 📊 INFO */}
-      <View style={styles.overlay}>
-        <Text style={styles.title}>Live Bus Tracking</Text>
+    {/* 🗺 MAP */}
+    <WebView
+      originWhitelist={["*"]}
+      source={{
+        html: mapHTML(
+          busLocation.latitude,
+          busLocation.longitude,
+          destination
+        ),
+      }}
+      style={{ flex: 1 }}
+    />
 
-        <View style={styles.card}>
-          <Text style={styles.route}>Bus GPS</Text>
+    {/* 📊 INFO */}
+    <View style={styles.overlay}>
+      <Text style={styles.title}>Live Bus Tracking</Text>
 
-          <View style={styles.row}>
-            <Text style={styles.time}>
-              Updated: {time || "---"}
-            </Text>
-            <Text style={styles.eta}>{eta}</Text>
-          </View>
+      <View style={styles.card}>
+        <Text style={styles.route}>Bus GPS</Text>
 
-          <Text>Lat: {busLocation.latitude.toFixed(5)}</Text>
-          <Text>Lng: {busLocation.longitude.toFixed(5)}</Text>
+        <View style={styles.row}>
+          <Text style={styles.time}>
+            Updated: {time || "---"}
+          </Text>
+          <Text style={styles.eta}>{eta}</Text>
         </View>
-      </View>
-    </SafeAreaView>
-  );
-}
 
+        <Text>Lat: {busLocation.latitude.toFixed(5)}</Text>
+        <Text>Lng: {busLocation.longitude.toFixed(5)}</Text>
+      </View>
+    </View>
+
+    {/* ✅ CANCEL BUTTON */}
+    <TouchableOpacity
+      onPress={handleCancel}
+      style={{
+        position: "absolute",
+        bottom: 30,
+        alignSelf: "center",
+        backgroundColor: "#ef4444",
+        padding: 14,
+        borderRadius: 10,
+        width: 220,
+        zIndex: 9999,        // 🔥 ADD THIS
+        elevation: 10,       // 🔥 AND THIS (Android)
+      }}
+    >
+      <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+        Cancel Ride ❌
+      </Text>
+    </TouchableOpacity>
+
+  </SafeAreaView>
+)};
 const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     top: 100,
     left: 20,
     right: 20,
+    zIndex: 1, // lower than button
   },
   title: {
     fontSize: 22,

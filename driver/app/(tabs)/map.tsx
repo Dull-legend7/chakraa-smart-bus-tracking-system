@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 
 import { database } from "../../configs/firebase";
 import { ref, update, onValue, off } from "firebase/database";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function MapScreen() {
   const webRef = useRef<WebView>(null);
@@ -63,12 +64,39 @@ export default function MapScreen() {
 
     return () => off(driverRef);
   }, []);
+/* 🔥 FORCE ROUTE ON LOAD (ADD THIS EXACTLY HERE) */
+useEffect(() => {
+  const loadRideAndNavigate = async () => {
+    try {
+      const data = await AsyncStorage.getItem("activeRide");
 
+      if (!data) return;
+
+      const ride = JSON.parse(data);
+
+      console.log("🚀 FORCE ROUTE:", ride);
+
+      setTimeout(() => {
+        webRef.current?.injectJavaScript(`
+          window.navigateToStop(
+            ${ride.stop.lat},
+            ${ride.stop.lng},
+            "${ride.stop.name}"
+          );
+          true;
+        `);
+      }, 800);
+
+    } catch (err) {
+      console.log("❌ ROUTE LOAD ERROR:", err);
+    }
+  };
+
+  loadRideAndNavigate();
+}, []);
   // 🔥 FIXED LISTENER (ONLY IMPROVED — NOTHING REMOVED)
 useEffect(() => {
   const bookingsRef = ref(database, "bookings");
-
-  let lastHandledId: string | null = null;
 
   const unsubscribe = onValue(bookingsRef, (snapshot) => {
     const data = snapshot.val();
@@ -86,24 +114,15 @@ useEffect(() => {
       .sort((a: any, b: any) => {
         const t1 = a[1]?.createdAt || 0;
         const t2 = b[1]?.createdAt || 0;
-
-        // ✅ fallback if missing createdAt
-        if (!t1 && !t2) return a[0] < b[0] ? 1 : -1;
-
         return t2 - t1;
       })[0];
 
     if (!latest) return;
 
     const [id, val]: any = latest;
-
-    if (id === lastHandledId) return;
-
-    lastHandledId = id;
-
     const stop = val.assignedStop;
 
-    console.log("🧭 NAVIGATE TO STOP (ONCE):", stop);
+    console.log("🧭 ROUTE UPDATE:", id, stop);
 
     webRef.current?.injectJavaScript(`
       window.navigateToStop(${stop.lat}, ${stop.lng}, "${stop.name}");
@@ -257,23 +276,58 @@ window.navigateToStop = function(lat, lon, name) {
 
   const driverPos = driverMarker.getLatLng();
 
-  fetch(\`https://router.project-osrm.org/route/v1/driving/\${driverPos.lng},\${driverPos.lat};\${lon},\${lat}?overview=full&geometries=geojson\`)
+  // 🔥 ENABLE ALTERNATIVE ROUTES
+ const url = "https://router.project-osrm.org/route/v1/driving/"
+  + driverPos.lng + "," + driverPos.lat + ";"
+  + lon + "," + lat
+  + "?overview=full&geometries=geojson&alternatives=true";
+
+  fetch(url)
     .then(res => res.json())
     .then(data => {
-      const route = data.routes[0];
+     // 🔥 ADD THIS LINE HERE
+    console.log("🧪 ROUTES COUNT:", data.routes.length);
+    console.log("🧪 FULL DATA:", data);
+    // 🔥 ADD THIS
+    window.ReactNativeWebView.postMessage(
+    JSON.stringify({ type: "routes", count: data.routes.length })
+    );
+      if (!data.routes || data.routes.length === 0) return;
 
-      routeLine = L.geoJSON(route.geometry, {
-        style: { color: "#10B981", weight: 6 }
-      }).addTo(map);
+      // 🔥 CLEAR OLD ROUTES
+      if (window.routeLayers) {
+        window.routeLayers.forEach(r => map.removeLayer(r));
+      }
+      window.routeLayers = [];
 
-      map.fitBounds(routeLine.getBounds());
+      data.routes.forEach((route, index) => {
+        const layer = L.geoJSON(route.geometry, {
+          style: {
+            color: index === 0 ? "#10B981" : "#94A3B8", // main vs alt
+            weight: index === 0 ? 6 : 4,
+            opacity: index === 0 ? 1 : 0.6,
+            lineJoin: "round",
+            lineCap: "round"
+          }
+        }).addTo(map);
 
-      const km = (route.distance / 1000).toFixed(1);
-      const min = Math.round(route.duration / 60);
+        window.routeLayers.push(layer);
 
-      document.getElementById("routeInfo").innerHTML =
-        "🧭 Pickup: " + name + " • " + km + " km • " + min + " mins";
-    });
+        // 🔥 FIT TO MAIN ROUTE ONLY
+        if (index === 0) {
+          map.fitBounds(layer.getBounds());
+
+          const km = (route.distance / 1000).toFixed(1);
+          const min = Math.round(route.duration / 60);
+
+          document.getElementById("routeInfo").innerHTML =
+            "🧭 Nearest Stop: " + name + " • " + km + " km • " + min + " mins";
+        }
+      });
+
+      console.log("✅ Multiple routes drawn:", data.routes.length);
+    })
+    .catch(err => console.log("❌ Routing error:", err));
 };
 
 /* AUTOCOMPLETE + ROUTE (UNCHANGED) */
@@ -340,7 +394,14 @@ document.getElementById("to").addEventListener("input", (e) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <WebView ref={webRef} source={{ html }} style={{ flex: 1 }} />
+     <WebView
+  ref={webRef}
+  source={{ html }}
+  style={{ flex: 1 }}
+  onMessage={(event) => {
+    console.log("📥 FROM MAP:", event.nativeEvent.data);
+  }}
+/>
     </View>
   );
 }

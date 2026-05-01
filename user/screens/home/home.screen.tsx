@@ -10,9 +10,14 @@ import { external } from "@/styles/external.style";
 import LocationSearchBar from "@/components/location/location.search.bar";
 import color from "@/themes/app.colors";
 import { useEffect, useState } from "react";
+import { TouchableOpacity } from "react-native";
+import { ref, onValue } from "firebase/database";
+import { database } from "@/lib/firebase"; // adjust if needed
+import { router } from "expo-router";
 
 export default function HomeScreen() {
   const [recentRides, setrecentRides] = useState<any[]>([]);
+  const [topRoute, setTopRoute] = useState<any>(null);
 
   // 🔥 FORCE PROFESSIONAL DUMMY DATA
   useEffect(() => {
@@ -44,6 +49,41 @@ export default function HomeScreen() {
     ]);
   }, []);
 
+  useEffect(() => {
+  const routesRef = ref(database, "users/user1/routes");
+
+  const unsubscribe = onValue(routesRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const values = Object.values(data);
+
+    const routeCount: any = {};
+
+    values.forEach((r: any) => {
+      const key = `${r.from}__${r.to}`;
+      routeCount[key] = (routeCount[key] || 0) + 1;
+    });
+
+    let max = 0;
+    let bestRoute = null;
+
+    Object.keys(routeCount).forEach((key) => {
+      if (routeCount[key] > max) {
+        max = routeCount[key];
+        bestRoute = key;
+      }
+    });
+
+    if (bestRoute) {
+      const [from, to] = bestRoute.split("__");
+      setTopRoute({ from, to });
+    }
+  });
+
+  return () => unsubscribe();
+}, []);
+
   return (
     <View style={[commonStyles.flexContainer, { backgroundColor: "#fff" }]}>
       <SafeAreaView style={styles.container}>
@@ -63,6 +103,36 @@ export default function HomeScreen() {
           {/* 🔍 SEARCH BAR */}
           <LocationSearchBar />
         </View>
+
+        {topRoute && (
+  <TouchableOpacity
+    style={{
+      marginHorizontal: 15,
+      marginTop: 10,
+      padding: 16,
+      backgroundColor: "#2563EB",
+      borderRadius: 14,
+      elevation: 4,
+    }}
+    onPress={() => {
+      router.push({
+        pathname: "/rideplan",
+        params: {
+          from: topRoute.from,
+          to: topRoute.to,
+        },
+      });
+    }}
+  >
+    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
+      🚀 Most Used Route
+    </Text>
+
+    <Text style={{ color: "#fff", marginTop: 5 }}>
+      {topRoute.from} → {topRoute.to}
+    </Text>
+  </TouchableOpacity>
+)}
 
         {/* 🔥 RIDES SECTION */}
         <View style={{ paddingHorizontal: 15, marginTop: 10 }}>
