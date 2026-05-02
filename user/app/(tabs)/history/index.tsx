@@ -7,105 +7,44 @@ import {
 import React, { useEffect, useState } from "react";
 import styles from "@/screens/home/styles";
 import color from "@/themes/app.colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+
 import { windowHeight } from "@/themes/app.constant";
+import { ref, onValue } from "firebase/database";
+import { database } from "@/lib/firebase";
 
 export default function History() {
-  const [recentRides, setRecentRides] = useState<any[]>([]);
+  const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ BUS-ONLY DUMMY DATA (REALISTIC)
-  const dummyRides = [
-    {
-      from: "Kollam KSRTC Stand",
-      to: "Trivandrum Central",
-      price: 140,
-      date: "Today, 10:30 AM",
-      distance: "64 km",
-      type: "KSRTC Fast",
-    },
-    {
-      from: "Technopark",
-      to: "Kazhakootam",
-      price: 45,
-      date: "Today, 8:15 AM",
-      distance: "6 km",
-      type: "Private Bus",
-    },
-    {
-      from: "Varkala",
-      to: "Attingal",
-      price: 60,
-      date: "Yesterday",
-      distance: "18 km",
-      type: "Private Bus",
-    },
-    {
-      from: "Kollam",
-      to: "Ernakulam",
-      price: 220,
-      date: "3 days ago",
-      distance: "130 km",
-      type: "KSRTC Super Fast",
-    },
-    {
-      from: "Trivandrum",
-      to: "Varkala",
-      price: 90,
-      date: "Last week",
-      distance: "40 km",
-      type: "Private Bus",
-    },
-    {
-      from: "Attingal",
-      to: "Kollam",
-      price: 110,
-      date: "Last week",
-      distance: "50 km",
-      type: "KSRTC Ordinary",
-    },
-  ];
+useEffect(() => {
+  const ridesRef = ref(database, "users/demo_user/rides");
 
-  const getRecentRides = async () => {
-    try {
-      const accessToken = await AsyncStorage.getItem("accessToken");
+  const unsubscribe = onValue(ridesRef, (snapshot) => {
+    const data = snapshot.val();
 
-      const res = await axios.get(
-        `${process.env.EXPO_PUBLIC_SERVER_URI}/get-rides`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      // ✅ filter only bus rides (if backend sends mixed data)
-      const busRides =
-        res.data?.rides?.filter(
-          (ride: any) =>
-            ride.type?.toLowerCase().includes("bus") ||
-            ride.type?.toLowerCase().includes("ksrtc")
-        ) || [];
-
-      if (busRides.length === 0) {
-        setRecentRides(dummyRides);
-      } else {
-        setRecentRides(busRides);
-      }
-    } catch (error) {
-      console.log("Ride history error:", error);
-
-      // fallback
-      setRecentRides(dummyRides);
-    } finally {
+    if (!data) {
+      setRides([]);
       setLoading(false);
+      return;
     }
-  };
 
-  useEffect(() => {
-    getRecentRides();
-  }, []);
+    const ridesArray = Object.keys(data).map((key) => ({
+      id: key,
+      ...data[key],
+    }));
+
+    // 🔥 latest first
+    const sorted = ridesArray.sort(
+      (a, b) => b.createdAt - a.createdAt
+    );
+
+    setRides(sorted);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   return (
     <View
@@ -137,16 +76,16 @@ export default function History() {
         <ActivityIndicator size="large" color="#2563EB" />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          {recentRides.length === 0 ? (
+          {rides.length === 0 ? (
             <View style={{ marginTop: 50, alignItems: "center" }}>
               <Text style={{ fontSize: 16, color: "gray" }}>
                 No bus rides yet 🚍
               </Text>
             </View>
           ) : (
-            recentRides.map((item: any, index: number) => (
+            rides.map((item: any) => (
               <View
-                key={index}
+                key={item.id}
                 style={{
                   backgroundColor: "#fff",
                   marginBottom: 12,
@@ -169,15 +108,30 @@ export default function History() {
                     🚍 {item.type || "Bus"}
                   </Text>
 
-                  <Text
-                    style={{
-                      color: "#2563EB",
-                      fontWeight: "700",
-                      fontSize: 16,
-                    }}
-                  >
-                    ₹{item.price || 0}
-                  </Text>
+<Text
+  style={{
+    color: "#2563EB",
+    fontWeight: "700",
+    fontSize: 16,
+  }}
+>
+  ₹{item.price || 0}
+</Text>
+
+<Text
+  style={{
+    marginTop: 4,
+    fontWeight: "600",
+    color:
+      item.status === "cancelled"
+        ? "#ef4444"
+        : item.status === "completed"
+        ? "#555"
+        : "#16a34a",
+  }}
+>
+  {item.status}
+</Text>
                 </View>
 
                 {/* ROUTE */}
@@ -197,7 +151,7 @@ export default function History() {
                     {item.distance || "--"}
                   </Text>
                   <Text style={{ color: "gray" }}>
-                    {item.date || "Recently"}
+                    {new Date(item.createdAt).toLocaleString()}
                   </Text>
                 </View>
               </View>

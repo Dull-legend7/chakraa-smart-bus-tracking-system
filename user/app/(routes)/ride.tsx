@@ -19,6 +19,8 @@ const { width, height } = Dimensions.get("window");
 export default function RideScreen() {
   const { bookingId } = useLocalSearchParams();
   const [bus, setBus] = useState<any>(null);
+  
+  const [bookingData, setBookingData] = useState<any>(null);
 
   // 🔥 LISTEN BUS LOCATION
   useEffect(() => {
@@ -42,20 +44,53 @@ export default function RideScreen() {
       const data = snapshot.val();
 
       if (!data) return;
+      setBookingData(data);
 
       console.log("📡 BOOKING STATUS:", data.status);
 
       // ✅ SAVE ROUTE WHEN DRIVER ACCEPTS
-if (data.status === "accepted") {
+if (data.status === "accepted" && !data.rideId) {
+
   console.log("✅ RIDE ACCEPTED — SAVING ROUTE");
 
-  const userId = "user1";
+  const userId = "demo_user";
 
+  // ✅ SAVE MOST USED ROUTE
   await push(ref(database, `users/${userId}/routes`), {
     from: data.from || data.pickup || "Unknown",
     to: data.to || data.destination || "Unknown",
     timestamp: Date.now(),
   });
+
+  
+
+  // 🔥 ADD THIS (IMPORTANT)
+const rideRef = push(ref(database, `users/${userId}/rides`));
+
+await set(rideRef, {
+  from: data.from || "Unknown",
+  to: data.to || "Unknown",
+  price: data.price || 0,
+  duration: data.duration || "",
+  createdAt: Date.now(),
+  status: data.status, // ✅ FIXED
+});
+
+
+
+await update(bookingRef, {
+  rideId: rideRef.key,
+});
+  console.log("🔥 RIDE SAVED TO HISTORY");
+}
+
+if (data.status === "completed" && data.rideId) {
+  await update(
+    ref(database, `users/demo_user/rides/${data.rideId}`),
+    {
+      status: "completed",
+    }
+  );
 }
 
       // ❌ If cancelled from anywhere
@@ -86,6 +121,7 @@ const handleCancel = async () => {
 
             const data = snapshot.val();
             if (!data) return;
+            const rideId = data.rideId;
 
             const originalPrice = data.price || 100;
 
@@ -120,6 +156,15 @@ console.log("🔥 DRIVER UPDATED AFTER CANCEL");
               refund,
               penalty,
             });
+
+            if (rideId) {
+  await update(
+    ref(database, `users/demo_user/rides/${rideId}`),
+    {
+      status: "cancelled",
+    }
+  );
+}
 
             Alert.alert(
               "Refund Processed 💰",
@@ -215,7 +260,7 @@ console.log("🔥 DRIVER UPDATED AFTER CANCEL");
         </Text>
 
         {/* 💰 REFUND INFO */}
-{bookingId && (
+{bookingData?.refund && (
   <Text
     style={{
       color: "green",
@@ -224,7 +269,7 @@ console.log("🔥 DRIVER UPDATED AFTER CANCEL");
       fontWeight: "600",
     }}
   >
-    Refund: ₹{bus.refund}
+    Refund: ₹{bookingData.refund}
   </Text>
 )}
 

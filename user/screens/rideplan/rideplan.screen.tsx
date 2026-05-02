@@ -259,22 +259,33 @@ useEffect(() => {
     const newBooking = push(bookingRef);
 
     
+await set(newBooking, {
+  userId: "demo_user",
 
-    await set(newBooking, {
-      userId: "demo_user",
-      source: "user_app",
-      pickupCoords: origin,
-      destinationCoords: destination,
+  from: origin?.description || "Unknown",
+  to: destination?.description || "Unknown",
 
-      // 🔥 ADD THIS
-      from: origin?.description || "Unknown",
-      to: destination?.description || "Unknown",
-      
-      price: selectedRide?.price || 0,
-      status: "searching",
-      driverId: null,
-      createdAt: Date.now(),
-    });
+  pickupCoords: origin,
+  destinationCoords: destination,
+
+  price: selectedRide?.price || 0,
+  duration: selectedRide?.time || "",
+
+  status: "completed", // 🔥 important for history
+  driverId: null,
+
+  createdAt: Date.now(),
+});
+
+// 🔥 SAVE TO USER RIDE HISTORY
+await push(ref(database, `users/demo_user/rides`), {
+  from: origin?.description || "Unknown",
+  to: destination?.description || "Unknown",
+  price: selectedRide?.price || 0,
+  duration: selectedRide?.time || "",
+  createdAt: Date.now(),
+  status: "completed",
+});
     // ✅ MOVE THIS HERE (AFTER set)
     setCurrentBookingId(newBooking.key);
 
