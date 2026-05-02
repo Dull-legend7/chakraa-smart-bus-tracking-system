@@ -1,42 +1,48 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/Dull-legend7/chakraa-smart-bus-tracking-system)
+
 # 🚌 Chakraa - Smart Bus Tracking System
 
-A real-time bus tracking application designed to help users track buses efficiently using GPS and IoT integration.
+A **full-stack real-time bus tracking solution** that integrates IoT, cloud backend, and mobile applications to provide live bus location tracking and enhanced user experience.
 
 ---
 
 ## 📌 Project Overview
 
-Chakraa is a smart transportation solution that provides real-time bus location tracking using an ESP32-based GPS module, Firebase backend, and mobile/web applications for users and drivers.
+**Chakraa** is a smart transportation system that enables real-time tracking of buses using an **ESP32-based GPS module**, a **Firebase-powered backend**, and **mobile applications for users and drivers**.
+
+It enhances public transport usability by combining **live tracking, route visibility, and smart features like payments and dashboards**.
 
 ---
 
 ## 🧰 Tech Stack
 
-- **Frontend:** React Native  
-- **Backend:** Node.js / Express  
-- **Database:** Firebase Realtime Database  
-- **Hardware:** ESP32 + GPS Module
+* **Frontend:** React Native
+* **Backend:** Node.js / Express
+* **Database:** Firebase Realtime Database
+* **Hardware:** ESP32 + GPS Module
+* **Payments:** Razorpay
 
 ---
 
 ## ⚙️ Features
 
 * 📍 Real-time bus location tracking
-* 🧑‍✈️ Driver app for live updates
-* 📱 User app to view bus routes and location
-* 🔥 Firebase integration for real-time database
+* 🧑‍✈️ Driver dashboard for ride management
+* 📱 User app with search and tracking interface
+* 🔍 Smart search functionality for routes
+* 💳 Secure payment integration (Razorpay)
+* 🔥 Firebase real-time database updates
 * 🌐 Cloud-based backend system
-* 🔔 Notifications (if implemented)
+* 🔔 Notification support (if implemented)
 
 ---
 
 ## 🏗️ System Architecture
 
-* **Hardware:** ESP32 + GPS Module
-* **Backend:** Node.js / Express
-* **Database:** Firebase Realtime Database
-* **Frontend:** React Native / Web App
+* **Hardware Layer:** ESP32 + GPS Module (data collection)
+* **Backend Layer:** Node.js / Express (API + processing)
+* **Database Layer:** Firebase Realtime Database
+* **Frontend Layer:** React Native apps (User + Driver)
 
 ---
 
@@ -44,9 +50,9 @@ Chakraa is a smart transportation solution that provides real-time bus location 
 
 ```
 chakraa-smart-bus-tracking-system/
-│── client/        # User application
-│── server/        # Backend server
-│── driver-app/    # Driver application
+│── user/          # User mobile application
+│── driver/        # Driver mobile application
+│── server/        # Backend server (APIs, payments)
 │── hardware/      # ESP32 + GPS code
 │── README.md
 ```
@@ -55,10 +61,11 @@ chakraa-smart-bus-tracking-system/
 
 ## 🚀 How It Works
 
-1. GPS module collects real-time coordinates
-2. ESP32 sends data to Firebase
-3. Backend processes and updates database
-4. User app fetches and displays live bus location
+1. 📡 GPS module collects real-time coordinates
+2. 📶 ESP32 sends data to Firebase
+3. ⚙️ Backend processes and updates the database
+4. 📱 User app fetches and displays live bus location
+5. 💳 Payment system handles secure transactions
 
 ---
 
@@ -87,39 +94,40 @@ npm start
 
 ## 🔐 Environment Variables
 
-Create a `.env` file and add:
+Create a `.env` file in the required directories and add:
 
 ```
-FIREBASE_API_KEY=your_key
-DATABASE_URL=your_url
+FIREBASE_API_KEY=your_api_key_here
+DATABASE_URL=your_database_url_here
+PAYMENT_API_KEY=your_payment_key_here
 ```
+
+> ⚠️ Never commit `.env` files to GitHub. Always keep API keys secure.
 
 ---
 
 ## 📸 Screenshots
 
-<img width="401" height="857" alt="screen recording of user app working pic" src="https://github.com/user-attachments/assets/da313809-f36a-4de4-9fa7-cd67faf09932" />
+<img width="401" height="857" alt="User App Working" src="https://github.com/user-attachments/assets/da313809-f36a-4de4-9fa7-cd67faf09932" />
 
-<img width="467" height="861" alt="screens shot of ddriver app working" src="https://github.com/user-attachments/assets/ff0b9082-d8fb-432d-bc62-82cc1682b7e8" />
-
-
-
+<img width="467" height="861" alt="Driver App Working" src="https://github.com/user-attachments/assets/ff0b9082-d8fb-432d-bc62-82cc1682b7e8" />
 
 ---
 
 ## 🎯 Future Improvements
 
-* Route prediction using AI
-* Traffic-based ETA
-* Improved UI/UX
-* Offline tracking support
+* 🤖 AI-based route prediction
+* ⏱️ Traffic-based ETA estimation
+* 🎨 Enhanced UI/UX
+* 📡 Offline tracking capabilities
+* 📊 Advanced analytics dashboard
 
 ---
 
 ## 👨‍💻 Contributors
 
 * Athul S
-* M.Varshith Reddy
+* M. Varshith Reddy
 * Rithin Ranjith
 * Noaf N
 * Nived S
@@ -128,7 +136,7 @@ DATABASE_URL=your_url
 
 ## 📜 License
 
-This project is for academic purposes.
+This project is developed for **academic purposes**.
 
 ---
 
@@ -136,6 +144,7 @@ This project is for academic purposes.
 
 * Firebase
 * ESP32 Community
+* Razorpay
 * Open-source libraries
 
 ---
